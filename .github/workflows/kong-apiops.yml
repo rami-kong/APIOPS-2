@@ -79,7 +79,8 @@ jobs:
 
       - name: Install deck CLI
         run: |
-          curl -sL https://github.com/Kong/deck/releases/latest/download/deck_$(uname -s)_amd64.tar.gz | tar xz -C /tmp
+          DECK_VERSION=$(curl -sI https://github.com/Kong/deck/releases/latest | grep -i location | sed 's/.*tag\/v//' | tr -d '\r\n')
+          curl -sL "https://github.com/Kong/deck/releases/download/v${DECK_VERSION}/deck_${DECK_VERSION}_linux_amd64.tar.gz" | tar xz -C /tmp
           sudo mv /tmp/deck /usr/local/bin/deck
           deck version
 
