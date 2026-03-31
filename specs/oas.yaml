@@ -1,30 +1,35 @@
 openapi: "3.0.1"
 info:
-  title: "ApiOps Echo Service"
+  title: "Echo Testing API"
   version: "1.0.0"
-  description: "Echo API for testing HTTP methods and request data. Proxied through Kong Gateway to httpbin.org."
+  description: |
+    The Echo Testing API proxies requests to httpbin.org through Kong Gateway.
+    It is designed for testing HTTP methods, debugging request/response payloads,
+    and validating gateway plugins like rate limiting.
+
+    ## Features
+    - Echo back request metadata (headers, args, origin, method)
+    - Echo back POST payloads as parsed JSON
+    - Rate limiting via Kong Gateway plugin (90/min, 1000/hr)
+
+    ## Authentication
+    Rate limiting is applied at the gateway level. No API key is currently required.
   contact:
     name: "Rami APIOps Team"
+    url: "https://github.com/rami-kong/APIOPS-2"
+  license:
+    name: "MIT"
 servers:
   - url: "https://httpbin.org"
     description: "Upstream service (httpbin.org)"
 
-# Kong-specific extensions - Also change apis.yaml Lines 42 and 49 must match this name
+# Kong-specific extensions
 x-kong-name: "rami-apiops-demo"
 x-kong-service-defaults:
   retries: 6
   connect_timeout: 60000
   write_timeout: 60000
   read_timeout: 60000
-
-# Global Kong plugins
-# x-kong-plugin-key-auth:
-#   enabled: true
-#   config:
-#     key_names: ["apiKey"]
-#     key_in_header: true
-#     key_in_query: false
-#     hide_credentials: true
 
 x-kong-plugin-rate-limiting:
   enabled: true
@@ -36,114 +41,269 @@ x-kong-plugin-rate-limiting:
 
 x-kong-tags: [ "owner=rami", "created_by:terraform", "environment:dev" ]
 
+tags:
+  - name: "Echo"
+    description: "Endpoints that echo back request data for testing and debugging"
+
 paths:
   /anything:
     get:
-      operationId: Httpbin-Anything
-      summary: "Returns anything passed in request data."
-      description: "Returns anything that is passed to request. Useful for testing HTTP methods and request data."
+      operationId: GetAnything
+      summary: "Retrieve request metadata"
+      description: |
+        Returns comprehensive information about the incoming request including
+        HTTP method, headers, query parameters, origin IP address, and the full URL.
+
+        Useful for debugging HTTP clients, testing proxy configurations, and validating
+        that request headers are forwarded correctly through the gateway.
       tags:
-        - "Testing"
+        - "Echo"
       parameters:
-        - name: "test"
+        - name: "source"
           in: "query"
-          description: "Test parameter"
+          description: "Identifies the source of the request (e.g., `portal`, `cli`, `sdk`)"
           required: false
           schema:
             type: "string"
+          example: "apiops-portal"
+        - name: "demo"
+          in: "query"
+          description: "Flag to indicate a demo/test request"
+          required: false
+          schema:
+            type: "string"
+            enum: ["true", "false"]
+          example: "true"
       responses:
         '200':
-          description: "Request data"
+          description: "Request data returned successfully"
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  method:
-                    type: string
-                    description: "HTTP method used"
-                    example: "GET"
-                  url:
-                    type: string
-                    description: "Request URL"
-                    example: "https://httpbin.org/anything"
-                  args:
-                    type: object
-                    description: "Query string arguments"
-                    example: {}
-                  headers:
-                    type: object
-                    description: "Request headers"
-                    example:
-                      Accept: "*/*"
-                      Host: "httpbin.org"
-                  data:
-                    type: string
-                    description: "Request body data"
-                    example: ""
-                  json:
-                    type: object
-                    description: "JSON request body"
-                    example: null
-                  origin:
-                    type: string
-                    description: "Client IP address"
-                    example: "127.0.0.1"
+                $ref: '#/components/schemas/AnythingResponse'
               example:
-                method: "GET"
-                url: "https://httpbin.org/anything"
-                args: {}
+                args:
+                  source: "apiops-portal"
+                  demo: "true"
+                data: ""
+                files: {}
+                form: {}
                 headers:
                   Accept: "*/*"
                   Host: "httpbin.org"
-                data: ""
+                  User-Agent: "curl/8.7.1"
                 json: null
-                origin: "127.0.0.1"
+                method: "GET"
+                origin: "203.123.65.132"
+                url: "https://httpbin.org/anything?source=apiops-portal&demo=true"
         '429':
-          description: "Too Many Requests"
+          description: "Rate limit exceeded"
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "API rate limit exceeded"
-        '401':
-          description: "Unauthorized"
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "API rate limit exceeded"
+        '502':
+          description: "Upstream service unavailable"
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Invalid API key"
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "An invalid response was received from the upstream server"
 
   /post:
     post:
-      operationId: Httpbin-Post
-      summary: "Httpbin POST data"
-      description: "Returns the posted data back"
+      operationId: PostData
+      summary: "Echo posted JSON data"
+      description: |
+        Accepts a JSON payload and echoes it back in the response. The response includes
+        the raw body (`data`), parsed JSON (`json`), and all request headers.
+
+        Useful for testing POST requests, validating JSON payloads, debugging content-type
+        handling, and verifying request body forwarding through proxies.
       tags:
-        - "Testing"
+        - "Echo"
       requestBody:
         required: true
+        description: "JSON payload to echo back"
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: true
+              $ref: '#/components/schemas/EchoPayload'
+            example:
+              message: "Hello from Rami APIOps"
+              demo: true
+              timestamp: "2026-03-31T20:00:00Z"
       responses:
         '200':
-          description: "Echoed data"
+          description: "Posted data echoed back successfully"
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  echoed_data:
-                    type: object
-                  timestamp:
-                    type: string
-                    format: date-time
+                $ref: '#/components/schemas/PostResponse'
+              example:
+                args: {}
+                data: '{"message":"Hello from Rami APIOps","demo":true,"timestamp":"2026-03-31T20:00:00Z"}'
+                files: {}
+                form: {}
+                headers:
+                  Accept: "*/*"
+                  Content-Length: "88"
+                  Content-Type: "application/json"
+                  Host: "httpbin.org"
+                json:
+                  message: "Hello from Rami APIOps"
+                  demo: true
+                  timestamp: "2026-03-31T20:00:00Z"
+                origin: "203.123.65.132"
+                url: "https://httpbin.org/post"
+        '429':
+          description: "Rate limit exceeded"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "API rate limit exceeded"
+
+components:
+  schemas:
+    AnythingResponse:
+      type: object
+      description: "Complete request echo response from /anything"
+      properties:
+        args:
+          type: object
+          description: "Query string parameters as key-value pairs"
+          additionalProperties:
+            type: string
+          example:
+            source: "apiops-portal"
+            demo: "true"
+        data:
+          type: string
+          description: "Raw request body (empty for GET requests)"
+          example: ""
+        files:
+          type: object
+          description: "Uploaded files (empty for JSON requests)"
+          additionalProperties:
+            type: string
+          example: {}
+        form:
+          type: object
+          description: "Form data (empty for JSON requests)"
+          additionalProperties:
+            type: string
+          example: {}
+        headers:
+          type: object
+          description: "Request headers received by the upstream service"
+          additionalProperties:
+            type: string
+          example:
+            Accept: "*/*"
+            Host: "httpbin.org"
+            User-Agent: "curl/8.7.1"
+        json:
+          description: "Parsed JSON body (null for GET requests)"
+          nullable: true
+          example: null
+        method:
+          type: string
+          description: "HTTP method used for the request"
+          enum: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+          example: "GET"
+        origin:
+          type: string
+          description: "Client IP address"
+          example: "203.123.65.132"
+        url:
+          type: string
+          description: "Full request URL including query parameters"
+          format: uri
+          example: "https://httpbin.org/anything?source=apiops-portal&demo=true"
+
+    PostResponse:
+      type: object
+      description: "Complete request echo response from /post"
+      properties:
+        args:
+          type: object
+          description: "Query string parameters"
+          additionalProperties:
+            type: string
+          example: {}
+        data:
+          type: string
+          description: "Raw request body as a string"
+          example: '{"message":"Hello from Rami APIOps","demo":true}'
+        files:
+          type: object
+          description: "Uploaded files"
+          additionalProperties:
+            type: string
+          example: {}
+        form:
+          type: object
+          description: "Form data"
+          additionalProperties:
+            type: string
+          example: {}
+        headers:
+          type: object
+          description: "Request headers including Content-Type and Content-Length"
+          additionalProperties:
+            type: string
+          example:
+            Accept: "*/*"
+            Content-Length: "88"
+            Content-Type: "application/json"
+            Host: "httpbin.org"
+        json:
+          type: object
+          description: "Parsed JSON body from the request"
+          additionalProperties: true
+          example:
+            message: "Hello from Rami APIOps"
+            demo: true
+            timestamp: "2026-03-31T20:00:00Z"
+        origin:
+          type: string
+          description: "Client IP address"
+          example: "203.123.65.132"
+        url:
+          type: string
+          description: "Full request URL"
+          format: uri
+          example: "https://httpbin.org/post"
+
+    EchoPayload:
+      type: object
+      description: "JSON payload to send to the echo endpoint"
+      additionalProperties: true
+      properties:
+        message:
+          type: string
+          description: "A test message to echo back"
+          example: "Hello from Rami APIOps"
+        demo:
+          type: boolean
+          description: "Flag indicating this is a demo request"
+          example: true
+        timestamp:
+          type: string
+          format: date-time
+          description: "Timestamp of the request"
+          example: "2026-03-31T20:00:00Z"
+
+    Error:
+      type: object
+      description: "Error response from Kong Gateway"
+      properties:
+        message:
+          type: string
+          description: "Human-readable error message"
+          example: "API rate limit exceeded"
