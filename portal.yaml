@@ -1,6 +1,5 @@
 # Kong Developer Portal & API Publication
-# Managed by kongctl - declarative configuration
-# This creates a portal and publishes APIs to it
+# Managed by kongctl declarative configuration
 
 portals:
   - ref: rami-portal
@@ -8,8 +7,54 @@ portals:
     display_name: "Rami APIOps Developer Portal"
     description: "Developer Portal for Rami APIOps Demo - APIs managed through APIOps workflow"
     authentication_enabled: false
+    rbac_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false
     default_api_visibility: "public"
     default_page_visibility: "public"
+
+    customization:
+      ref: rami-portal-customization
+      theme:
+        mode: "light"
+        colors:
+          primary: "#1155CB"
+      layout: "topnav"
+      menu:
+        main:
+          - path: "/getting-started"
+            title: "Getting Started"
+            external: false
+            visibility: "public"
+          - path: "/apis"
+            title: "APIs"
+            external: false
+            visibility: "public"
+
+    pages:
+      - ref: home-page
+        slug: "home"
+        title: "Home"
+        description: "Portal home page"
+        visibility: "public"
+        status: "published"
+        content: !file portal/pages/home.md
+
+      - ref: apis-page
+        slug: "apis"
+        title: "APIs"
+        description: "API Catalog"
+        visibility: "public"
+        status: "published"
+        content: !file portal/pages/apis.md
+
+      - ref: getting-started-page
+        slug: "getting-started"
+        title: "Getting Started"
+        description: "Getting started guide"
+        visibility: "public"
+        status: "published"
+        content: !file portal/pages/getting-started.md
 
 apis:
   - ref: echo-api
@@ -29,10 +74,6 @@ apis:
 
           ## Overview
           The Echo API is designed for testing HTTP methods and debugging requests.
-          It's managed through our APIOps workflow using Terraform and Kong Konnect.
-
-          ## Base URL
-          Use the gateway proxy URL from your Kong Konnect control plane.
 
           ## Endpoints
 
