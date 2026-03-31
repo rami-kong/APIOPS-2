@@ -18,7 +18,7 @@ portals:
       theme:
         mode: "light"
         colors:
-          primary: "#1155CB"
+          primary: "#0044f4"
       layout: "topnav"
       menu:
         main:
@@ -30,6 +30,27 @@ portals:
             title: "APIs"
             external: false
             visibility: "public"
+        footer_sections:
+          - title: "Resources"
+            items:
+              - path: "/apis"
+                title: "API Catalog"
+                external: false
+                visibility: "public"
+              - path: "/getting-started"
+                title: "Getting Started"
+                external: false
+                visibility: "public"
+          - title: "APIOps"
+            items:
+              - path: "https://github.com/rami-kong/APIOPS-2"
+                title: "GitHub Repository"
+                external: true
+                visibility: "public"
+              - path: "https://docs.konghq.com"
+                title: "Kong Documentation"
+                external: true
+                visibility: "public"
 
     pages:
       - ref: home-page
