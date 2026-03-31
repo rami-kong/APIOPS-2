@@ -26,6 +26,9 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: write
+
 env:
   TERRAFORM_DIR: terraform
   SCRIPTS_DIR: scripts
