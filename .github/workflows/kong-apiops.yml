@@ -33,10 +33,15 @@ env:
   TERRAFORM_DIR: terraform
   SCRIPTS_DIR: scripts
   KONNECT_SERVER_URL: ${{ vars.KONNECT_SERVER_URL || 'https://au.api.konghq.com' }}
+  KONNECT_REGION: ${{ vars.KONNECT_REGION || 'au' }}
 
 jobs:
-  deploy:
-    name: Validate, Generate & Deploy
+  # ============================================================
+  # SCENARIO 1: Gateway Deploy (deck + Terraform)
+  # Creates gateway services, routes, and plugins
+  # ============================================================
+  gateway-deploy:
+    name: "Scenario 1: Gateway Deploy (deck + Terraform)"
     runs-on: ubuntu-latest
     if: github.event.inputs.destroy != 'true'
     steps:
@@ -114,26 +119,94 @@ jobs:
           git diff --cached --quiet || git commit -m "Update Terraform state [skip ci]"
           git push
 
-      - name: Deployment Summary
+      - name: Gateway Deploy Summary
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: |
-          echo "## Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "## Scenario 1: Gateway Deploy Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Resource | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Control Plane | ${{ vars.CONTROL_PLANE_NAME }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Portal | ${{ vars.PORTAL_NAME }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Region | ${{ env.KONNECT_SERVER_URL }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Triggered by | @${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
 
+  # ============================================================
+  # SCENARIO 2: Portal & API Publish (kongctl)
+  # Creates a developer portal and publishes APIs to it
+  # ============================================================
+  portal-publish:
+    name: "Scenario 2: Portal & API Publish (kongctl)"
+    needs: gateway-deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && github.event.inputs.destroy != 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install kongctl
+        run: |
+          KONGCTL_VERSION=$(curl -sI https://github.com/Kong/kongctl/releases/latest | grep -i location | sed 's/.*tag\/v//' | tr -d '\r\n')
+          curl -sL "https://github.com/Kong/kongctl/releases/download/v${KONGCTL_VERSION}/kongctl_linux_amd64.zip" -o /tmp/kongctl.zip
+          unzip -o /tmp/kongctl.zip -d /tmp
+          sudo mv /tmp/kongctl /usr/local/bin/kongctl
+          chmod +x /usr/local/bin/kongctl
+          kongctl version --full
+
+      - name: Preview portal changes (diff)
+        run: |
+          kongctl diff -f config/portal.yaml --pat "${{ secrets.KONNECT_TOKEN }}" --region ${{ env.KONNECT_REGION }}
+        continue-on-error: true
+
+      - name: Create portal & publish APIs
+        run: |
+          kongctl apply -f config/portal.yaml --pat "${{ secrets.KONNECT_TOKEN }}" --region ${{ env.KONNECT_REGION }}
+
+      - name: Verify portal
+        run: |
+          echo "=== Portals ==="
+          kongctl get portals --pat "${{ secrets.KONNECT_TOKEN }}" --region ${{ env.KONNECT_REGION }}
+          echo ""
+          echo "=== APIs ==="
+          kongctl get apis --pat "${{ secrets.KONNECT_TOKEN }}" --region ${{ env.KONNECT_REGION }}
+
+      - name: Portal Publish Summary
+        run: |
+          echo "## Scenario 2: Portal & API Publish Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Portal | rami-apiops-portal |" >> $GITHUB_STEP_SUMMARY
+          echo "| API | Echo Testing API |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tool | kongctl |" >> $GITHUB_STEP_SUMMARY
+          echo "| Region | ${{ env.KONNECT_REGION }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Triggered by | @${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================
+  # DESTROY: Tear down all resources
+  # ============================================================
   destroy:
-    name: Terraform Destroy
+    name: Destroy All Resources
     runs-on: ubuntu-latest
     if: github.event.inputs.destroy == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # --- kongctl destroy portal first ---
+      - name: Install kongctl
+        run: |
+          KONGCTL_VERSION=$(curl -sI https://github.com/Kong/kongctl/releases/latest | grep -i location | sed 's/.*tag\/v//' | tr -d '\r\n')
+          curl -sL "https://github.com/Kong/kongctl/releases/download/v${KONGCTL_VERSION}/kongctl_linux_amd64.zip" -o /tmp/kongctl.zip
+          unzip -o /tmp/kongctl.zip -d /tmp
+          sudo mv /tmp/kongctl /usr/local/bin/kongctl
+          chmod +x /usr/local/bin/kongctl
+
+      - name: Destroy portal resources (kongctl)
+        run: |
+          kongctl sync -f /dev/null --pat "${{ secrets.KONNECT_TOKEN }}" --region ${{ env.KONNECT_REGION }} || true
+        continue-on-error: true
+
+      # --- Terraform destroy gateway ---
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -162,5 +235,6 @@ jobs:
 
       - name: Destroy Summary
         run: |
-          echo "## Resources Destroyed" >> $GITHUB_STEP_SUMMARY
-          echo "All Kong Konnect resources have been removed." >> $GITHUB_STEP_SUMMARY
+          echo "## All Resources Destroyed" >> $GITHUB_STEP_SUMMARY
+          echo "- Gateway resources (Terraform)" >> $GITHUB_STEP_SUMMARY
+          echo "- Portal & API publications (kongctl)" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,51 @@
+# Kong Developer Portal & API Publication
+# Managed by kongctl - declarative configuration
+# This creates a portal and publishes APIs to it
+
+portals:
+  - ref: rami-portal
+    name: "rami-apiops-portal"
+    display_name: "Rami APIOps Developer Portal"
+    description: "Developer Portal for Rami APIOps Demo - APIs managed through APIOps workflow"
+    authentication_enabled: false
+    default_api_visibility: "public"
+    default_page_visibility: "public"
+
+apis:
+  - ref: echo-api
+    name: "Echo Testing API"
+    description: "Echo API for testing HTTP methods and request data - Generated via Kong APIOps"
+    versions:
+      - ref: echo-api-v1
+        name: "v1.0.0"
+        spec: !file ../specs/oas.yaml
+    documents:
+      - ref: echo-api-docs
+        title: "Echo API Documentation"
+        slug: "echo-api-docs"
+        status: "published"
+        content: |
+          # Echo API Documentation
+
+          ## Overview
+          The Echo API is designed for testing HTTP methods and debugging requests.
+          It's managed through our APIOps workflow using Terraform and Kong Konnect.
+
+          ## Base URL
+          Use the gateway proxy URL from your Kong Konnect control plane.
+
+          ## Endpoints
+
+          ### GET /anything
+          Returns comprehensive information about the request including headers, query parameters, and metadata.
+
+          ### POST /post
+          Returns the posted data back. Useful for testing POST payloads.
+
+          ## Rate Limiting
+          - 90 requests per minute
+          - 1000 requests per hour
+    publications:
+      - ref: echo-api-pub
+        portal_id: !ref rami-portal#id
+        visibility: public
