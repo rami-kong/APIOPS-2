@@ -1,0 +1,85 @@
+extends: "spectral:oas"
+rules:
+  # --- Kong APIOps Governance Rules ---
+
+  # Every operation must have an operationId
+  operation-operationId:
+    description: "Every operation must have a unique operationId."
+    severity: error
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: operationId
+      function: truthy
+
+  # Info object must have contact
+  info-contact:
+    description: "API must have contact information."
+    severity: warn
+    given: "$.info"
+    then:
+      field: contact
+      function: truthy
+
+  # Info object must have description
+  info-description:
+    description: "API must have a description."
+    severity: error
+    given: "$.info"
+    then:
+      field: description
+      function: truthy
+
+  # Paths must be kebab-case
+  paths-kebab-case:
+    description: "Path segments should be kebab-case."
+    severity: warn
+    given: "$.paths"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^(/[a-z0-9]+(-[a-z0-9]+)*|/{[^}]+})*$"
+
+  # No trailing slashes
+  no-trailing-slash:
+    description: "Paths must not have trailing slashes."
+    severity: error
+    given: "$.paths"
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: "/$"
+
+  # Must define servers
+  oas3-api-servers:
+    description: "API must define at least one server."
+    severity: error
+    given: "$"
+    then:
+      field: servers
+      function: truthy
+
+  # Operations should have tags
+  operation-tags:
+    description: "Every operation should have at least one tag."
+    severity: warn
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: tags
+      function: truthy
+
+  # Operations should have descriptions
+  operation-description:
+    description: "Every operation should have a description."
+    severity: warn
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: description
+      function: truthy
+
+  # Responses should have descriptions
+  oas3-valid-schema-example:
+    severity: warn
+
+  # No eval in spec
+  no-eval-in-markdown:
+    severity: error

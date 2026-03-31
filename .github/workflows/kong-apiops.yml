@@ -1,0 +1,250 @@
+name: Kong APIOps Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'specs/**'
+      - 'config/**'
+      - 'terraform/**'
+      - 'scripts/**'
+
+  pull_request:
+    branches: [main]
+    paths:
+      - 'specs/**'
+      - 'config/**'
+      - 'terraform/**'
+      - 'scripts/**'
+
+  workflow_dispatch:
+    inputs:
+      destroy:
+        description: 'Destroy all resources'
+        required: false
+        type: boolean
+        default: false
+      force_regenerate:
+        description: 'Force regenerate Kong resources'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  TERRAFORM_DIR: terraform
+  SCRIPTS_DIR: scripts
+  KONNECT_SERVER_URL: ${{ vars.KONNECT_SERVER_URL || 'https://au.api.konghq.com' }}
+
+jobs:
+  validate:
+    name: Validate OpenAPI & Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Validate OpenAPI specs
+        run: |
+          for spec in specs/*.yaml; do
+            echo "Validating $spec..."
+            yq eval '.' "$spec" > /dev/null || { echo "Invalid YAML: $spec"; exit 1; }
+            # Check required Kong extensions
+            KONG_NAME=$(yq eval '.x-kong-name // "not-found"' "$spec")
+            if [ "$KONG_NAME" = "not-found" ]; then
+              echo "Warning: No x-kong-name in $spec"
+            else
+              echo "  x-kong-name: $KONG_NAME"
+            fi
+          done
+          echo "All specs validated"
+
+      - name: Validate APIs configuration
+        run: |
+          yq eval '.' config/apis.yaml > /dev/null || { echo "Invalid apis.yaml"; exit 1; }
+          echo "APIs configuration valid"
+
+  generate:
+    name: Generate Gateway Resources
+    needs: validate
+    runs-on: ubuntu-latest
+    if: github.event.inputs.destroy != 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install deck CLI
+        run: |
+          curl -sL https://github.com/Kong/deck/releases/latest/download/deck_$(uname -s)_amd64.tar.gz | tar xz -C /tmp
+          sudo mv /tmp/deck /usr/local/bin/deck
+          deck version
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Generate Kong resources
+        working-directory: ${{ env.SCRIPTS_DIR }}
+        run: bash generate_gateway_resources.sh
+
+      - name: Upload generated Terraform
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-config
+          path: ${{ env.TERRAFORM_DIR }}/main.tf
+
+  plan:
+    name: Terraform Plan
+    needs: generate
+    runs-on: ubuntu-latest
+    if: github.event.inputs.destroy != 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download generated Terraform
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-config
+          path: ${{ env.TERRAFORM_DIR }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: terraform plan -out=tfplan -no-color
+        env:
+          TF_VAR_konnect_token: ${{ secrets.KONNECT_TOKEN }}
+          TF_VAR_konnect_server_url: ${{ env.KONNECT_SERVER_URL }}
+          TF_VAR_control_plane_name: ${{ vars.CONTROL_PLANE_NAME }}
+          TF_VAR_portal_name: ${{ vars.PORTAL_NAME }}
+
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ env.TERRAFORM_DIR }}/tfplan
+
+      - name: Comment PR with Plan
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const plan = execSync('cd ${{ env.TERRAFORM_DIR }} && terraform show -no-color tfplan').toString();
+            const body = `### Terraform Plan
+            \`\`\`
+            ${plan.substring(0, 65000)}
+            \`\`\`
+            *Pushed by @${context.actor}*`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  apply:
+    name: Terraform Apply
+    needs: plan
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download generated Terraform
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-config
+          path: ${{ env.TERRAFORM_DIR }}
+
+      - name: Download Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ env.TERRAFORM_DIR }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: terraform apply -auto-approve tfplan
+        env:
+          TF_VAR_konnect_token: ${{ secrets.KONNECT_TOKEN }}
+          TF_VAR_konnect_server_url: ${{ env.KONNECT_SERVER_URL }}
+          TF_VAR_control_plane_name: ${{ vars.CONTROL_PLANE_NAME }}
+          TF_VAR_portal_name: ${{ vars.PORTAL_NAME }}
+
+      - name: Commit Terraform State
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ${{ env.TERRAFORM_DIR }}/terraform.tfstate
+          git diff --cached --quiet || git commit -m "Update Terraform state [skip ci]"
+          git push
+
+      - name: Deployment Summary
+        run: |
+          echo "## Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Control Plane | ${{ vars.CONTROL_PLANE_NAME }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Portal | ${{ vars.PORTAL_NAME }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Region | ${{ env.KONNECT_SERVER_URL }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Triggered by | @${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+
+  destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+    if: github.event.inputs.destroy == 'true'
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: terraform init
+
+      - name: Terraform Destroy
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: terraform destroy -auto-approve
+        env:
+          TF_VAR_konnect_token: ${{ secrets.KONNECT_TOKEN }}
+          TF_VAR_konnect_server_url: ${{ env.KONNECT_SERVER_URL }}
+          TF_VAR_control_plane_name: ${{ vars.CONTROL_PLANE_NAME }}
+          TF_VAR_portal_name: ${{ vars.PORTAL_NAME }}
+
+      - name: Commit Terraform State
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ${{ env.TERRAFORM_DIR }}/terraform.tfstate
+          git diff --cached --quiet || git commit -m "Update Terraform state after destroy [skip ci]"
+          git push
+
+      - name: Destroy Summary
+        run: |
+          echo "## Resources Destroyed" >> $GITHUB_STEP_SUMMARY
+          echo "All Kong Konnect resources have been removed." >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,28 @@
+# Kong Konnect Configuration
+# Copy this file to terraform.tfvars and update with your values
+
+# Kong Konnect Personal Access Token
+# Get this from: https://cloud.konghq.com/personal-access-tokens
+konnect_token = "MUST BE IN YOUR GITHUB REPO SECRETS"
+
+# Kong Konnect Server URL (adjust for your region)
+# US: https://us.api.konghq.com
+# EU: https://eu.api.konghq.com  
+# AU: https://au.api.konghq.com
+konnect_server_url = "https://au.api.konghq.com"
+
+# Existing Kong Konnect Resources
+# These must already exist in your Konnect organization
+control_plane_name = "Your Control Plane Name"
+portal_name        = "Your Portal Name"
+
+# Feature Flags
+enable_portal_pages = true
+
+# Default Tags
+tags = {
+  managed_by  = "terraform"
+  project     = "kong-apiops"
+  environment = "production"
+  team        = "platform"
+}

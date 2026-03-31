@@ -1,0 +1,1 @@
+deck file openapi2kong --spec oas.yaml --output-file kong.yaml

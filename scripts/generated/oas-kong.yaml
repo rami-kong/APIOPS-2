@@ -1,0 +1,57 @@
+_format_version: "3.0"
+services:
+- connect_timeout: 60000
+  host: httpbin.org
+  id: 2571f16f-aaee-5cd8-b186-85eaddd2423f
+  name: rami-apiops-demo
+  path: /
+  plugins:
+  - config:
+      hide_client_headers: false
+      hour: 1000
+      minute: 90
+      policy: local
+    enabled: true
+    id: 18a21152-b589-5107-ace6-64d310caf980
+    name: rate-limiting
+    tags:
+    - owner=rami
+    - created_by:terraform
+    - environment:dev
+  port: 443
+  protocol: https
+  read_timeout: 60000
+  retries: 6
+  routes:
+  - id: 3ddf5354-b4fc-520d-9762-1c83350b0826
+    methods:
+    - GET
+    name: rami-apiops-demo_httpbin-anything
+    paths:
+    - ~/anything$
+    plugins: []
+    regex_priority: 200
+    strip_path: false
+    tags:
+    - owner=rami
+    - created_by:terraform
+    - environment:dev
+  - id: 9eba6605-5448-50e8-ac6e-263cd7929a1e
+    methods:
+    - POST
+    name: rami-apiops-demo_httpbin-post
+    paths:
+    - ~/post$
+    plugins: []
+    regex_priority: 200
+    strip_path: false
+    tags:
+    - owner=rami
+    - created_by:terraform
+    - environment:dev
+  tags:
+  - owner=rami
+  - created_by:terraform
+  - environment:dev
+  write_timeout: 60000
+upstreams: []

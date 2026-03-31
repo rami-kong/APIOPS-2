@@ -1,0 +1,196 @@
+name: APIOps Dev Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'api-design/**'
+      - 'gateway-config/**'
+      - '.spectral.yaml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'api-design/**'
+      - 'gateway-config/**'
+      - '.spectral.yaml'
+
+env:
+  KONNECT_TOKEN: ${{ secrets.KONNECT_PAT }}
+  KONNECT_ADDR: "https://us.api.konghq.com"
+  CONTROL_PLANE_NAME: "apiops-demo-cp"
+
+# ──────────────────────────────────────────────
+# Stage 1: Lint & Validate (runs on every push/PR)
+# ──────────────────────────────────────────────
+jobs:
+  lint:
+    name: "🔍 Lint & Governance"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Spectral (OpenAPI Linter)
+        run: npm install -g @stoplight/spectral-cli
+
+      - name: Lint OpenAPI Spec (Governance Check)
+        run: |
+          echo "🔍 Linting OpenAPI specification against governance rules..."
+          spectral lint api-design/demo-api.yaml --ruleset .spectral.yaml --fail-severity warn
+          echo "✅ OpenAPI spec passed governance checks."
+
+  # ──────────────────────────────────────────────
+  # Stage 2: Build Kong Declarative Config
+  # ──────────────────────────────────────────────
+  build:
+    name: "🏗️ Build Kong Config"
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Kong decK
+        uses: kong/setup-deck@v1
+        with:
+          deck-version: '1.40.0'
+
+      - name: Convert OpenAPI to Kong Declarative Config
+        run: |
+          echo "🏗️ Converting OpenAPI spec to Kong state file..."
+          deck file openapi2kong -s api-design/demo-api.yaml -o gateway-config/kong.yaml
+          echo "✅ Kong state file generated."
+
+      - name: Merge Governance Plugins
+        run: |
+          echo "🔧 Merging base governance plugins..."
+          deck file merge gateway-config/kong.yaml gateway-config/base-plugins.yaml -o gateway-config/final-kong.yaml
+          echo "✅ Plugins merged into final config."
+
+      - name: Display Final Config
+        run: |
+          echo "📄 Final Kong Configuration:"
+          cat gateway-config/final-kong.yaml
+
+      - name: Upload Config Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kong-config
+          path: gateway-config/final-kong.yaml
+
+  # ──────────────────────────────────────────────
+  # Stage 3: Diff against Konnect (Dry Run)
+  # ──────────────────────────────────────────────
+  diff:
+    name: "🔄 Diff (Dry Run)"
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Kong decK
+        uses: kong/setup-deck@v1
+        with:
+          deck-version: '1.40.0'
+
+      - name: Download Config Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: kong-config
+          path: gateway-config/
+
+      - name: Diff with Kong Konnect
+        run: |
+          echo "🔄 Comparing local config with Konnect Control Plane..."
+          deck gateway diff gateway-config/final-kong.yaml \
+            --konnect-token $KONNECT_TOKEN \
+            --konnect-addr $KONNECT_ADDR \
+            --konnect-control-plane-name $CONTROL_PLANE_NAME
+          echo "✅ Diff complete."
+
+  # ──────────────────────────────────────────────
+  # Stage 4: Deploy to Konnect (only on main branch push)
+  # ──────────────────────────────────────────────
+  deploy:
+    name: "🚀 Deploy to Konnect"
+    runs-on: ubuntu-latest
+    needs: diff
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Kong decK
+        uses: kong/setup-deck@v1
+        with:
+          deck-version: '1.40.0'
+
+      - name: Download Config Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: kong-config
+          path: gateway-config/
+
+      - name: Sync to Kong Konnect
+        run: |
+          echo "🚀 Syncing configuration to Konnect Control Plane..."
+          deck gateway sync gateway-config/final-kong.yaml \
+            --konnect-token $KONNECT_TOKEN \
+            --konnect-addr $KONNECT_ADDR \
+            --konnect-control-plane-name $CONTROL_PLANE_NAME
+          echo "✅ Configuration deployed to Konnect!"
+
+      - name: Verify Deployment
+        run: |
+          echo "🔍 Verifying deployment..."
+          deck gateway diff gateway-config/final-kong.yaml \
+            --konnect-token $KONNECT_TOKEN \
+            --konnect-addr $KONNECT_ADDR \
+            --konnect-control-plane-name $CONTROL_PLANE_NAME
+          echo "✅ Deployment verified — no drift detected."
+
+  # ──────────────────────────────────────────────
+  # Stage 5: Smoke Test
+  # ──────────────────────────────────────────────
+  smoke-test:
+    name: "🧪 Smoke Test"
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Kong decK
+        uses: kong/setup-deck@v1
+        with:
+          deck-version: '1.40.0'
+
+      - name: Ping Konnect
+        run: |
+          echo "🧪 Pinging Konnect to verify connectivity..."
+          deck gateway ping \
+            --konnect-token $KONNECT_TOKEN \
+            --konnect-addr $KONNECT_ADDR \
+            --konnect-control-plane-name $CONTROL_PLANE_NAME
+          echo "✅ Konnect is reachable and CP is healthy."
+
+      - name: Summary
+        run: |
+          echo "========================================"
+          echo "  🎉 APIOps Pipeline Complete!"
+          echo "========================================"
+          echo "  ✅ OpenAPI Spec: Linted & Validated"
+          echo "  ✅ Kong Config:  Generated & Merged"
+          echo "  ✅ Konnect:      Synced & Verified"
+          echo "  ✅ Smoke Test:   Passed"
+          echo "========================================"

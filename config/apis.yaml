@@ -1,0 +1,129 @@
+# APIs Configuration for Kong Konnect Portal
+# This file contains all API definitions and portal configuration
+
+#Portal Docs, not in used since publishing to existing portal
+portal:
+  name: "Developer Portal"
+  pages:
+    welcome:
+      title: "Welcome to Kong Developer Portal"
+      slug: "/welcome"
+      description: "Welcome page for our API portal"
+      visibility: "public"
+      status: "published"
+      content: |
+        # Welcome to Rami API Developer Portal - this is created by Rami APIOps
+
+        This portal showcases APIs managed through our ApiOps workflow using Terraform and Kong Konnect.
+        Owner: Rami
+        ## Available APIs
+        
+        All APIs below are automatically generated from OpenAPI specifications and include proper authentication and rate limiting.
+
+        ## Getting Started
+        
+        1. **Get an API Key**: Contact your administrator for an API key
+        2. **Review the Documentation**: Each API has comprehensive documentation
+        3. **Test the APIs**: Use the interactive documentation to test endpoints
+        4. **Integrate**: Follow the code samples for your preferred language
+
+        ::apis-list
+        ---
+        persist-page-number: true
+        cta-text: "Explore APIs"
+        ---
+
+        ## Support
+        
+        If you need help, please contact our support team or check the FAQ section.
+
+# API Definitions
+apis:
+  rami-apiops-demo:  # This key must matche Line 42 & 49 and x-kong-name from OpenAPI spec line 11
+    name: "Echo Testing API APIOps LFS"
+    slug: "echo-api"
+    version: "1.0.2"
+    description: "Echo API for testing HTTP methods and request data - Generated via Kong ApiOps with Terraform"
+    spec_file: "oas.yaml"  # Path relative to specs directory
+    spec_type: "oas3"
+    service_name: "rami-apiops-demo"  # This key must matche Line 42 & 49 and x-kong-name from OpenAPI spec line 11
+    
+    # Labels for organization
+    labels:
+      created_by: "terraform"
+      team: "platform"
+      product: "testing"
+      method: "apiops"
+      environment: "production"
+      version: "v1"
+    
+    # Portal documentation
+    documentation:
+      title: "Echo API - Complete Documentation Virgin Australia"
+      slug: "echo-api-docs"
+      status: "published"
+      content: |
+        # Echo API Documentation APIOps Spark
+
+        ## Overview
+        The Echo API is designed for testing HTTP methods and debugging requests. It's managed through our ApiOps workflow using Terraform and Kong Konnect, ensuring consistency between OpenAPI specifications and gateway configuration.
+
+        ## Authentication
+        This API requires **API Key authentication**:
+        - **Header**: `apiKey: YOUR_API_KEY`
+        - **Required**: All endpoints require a valid API key
+        - **Rate Limiting**: 100 requests per minute, 1000 per hour
+
+        ## Base URL
+        ```
+        https://274658be22.gateways.konggateway.com
+        ```
+
+        ## Available Endpoints
+
+        ### GET /anything
+        Returns comprehensive information about the request, including headers, query parameters, and metadata.
+
+        **Authentication Required**: ✅ Yes (API Key)
+
+        **Rate Limits**: 
+        - 100 requests per minute
+        - 1000 requests per hour
+
+        **Query Parameters**:
+        - `test` (optional): Test parameter for demonstration
+
+        **Example Request**:
+        ```bash
+        curl -H "apiKey: YOUR_API_KEY" \
+             "https://274658be22.gateways.konggateway.com/anything?test=demo"
+        ```
+
+        ### POST /echo
+        Echoes back the posted JSON data with a timestamp.
+
+        **Authentication Required**: ✅ Yes (API Key)
+
+        **Content-Type**: `application/json`
+
+        **Example Request**:
+        ```bash
+        curl -X POST \
+             -H "apiKey: YOUR_API_KEY" \
+             -H "Content-Type: application/json" \
+             -d '{"message": "Hello World", "test": true}' \
+             "https://274658be22.gateways.konggateway.com/echo"
+        ```
+
+        ## ApiOps Workflow
+        This API was generated using our automated ApiOps workflow:
+
+        1. **OpenAPI Specification**: Single source of truth with Kong extensions
+        2. **deck Processing**: Kong-compliant resource generation
+        3. **Terraform Deployment**: Infrastructure as code
+        4. **Developer Portal**: Auto-generated documentation and API catalog
+    
+    # Portal publication settings
+    publication:
+      visibility: "public"
+      auto_approve_registrations: false

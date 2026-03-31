@@ -1,0 +1,18 @@
+# Secrets — never commit
+.env
+data-plane/certs/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+terraform.tfvars
+
+# Generated Kong configs (built in CI)
+gateway-config/kong.yaml
+gateway-config/final-kong.yaml
+
+# OS files
+.DS_Store
+*.log
