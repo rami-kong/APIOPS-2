@@ -154,12 +154,12 @@ jobs:
 
       - name: Preview portal changes (diff)
         run: |
-          kongctl diff -f config/portal.yaml --pat "${{ secrets.KONNECT_TOKEN }}" --region ${{ env.KONNECT_REGION }}
+          kongctl diff -f portal.yaml --pat "${{ secrets.KONNECT_TOKEN }}" --region ${{ env.KONNECT_REGION }}
         continue-on-error: true
 
       - name: Create portal & publish APIs
         run: |
-          kongctl apply -f config/portal.yaml --pat "${{ secrets.KONNECT_TOKEN }}" --region ${{ env.KONNECT_REGION }}
+          kongctl apply -f portal.yaml --pat "${{ secrets.KONNECT_TOKEN }}" --region ${{ env.KONNECT_REGION }}
 
       - name: Verify portal
         run: |

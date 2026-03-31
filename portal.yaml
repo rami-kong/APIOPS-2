@@ -18,7 +18,7 @@ apis:
     versions:
       - ref: echo-api-v1
         name: "v1.0.0"
-        spec: !file ../specs/oas.yaml
+        spec: !file specs/oas.yaml
     documents:
       - ref: echo-api-docs
         title: "Echo API Documentation"
