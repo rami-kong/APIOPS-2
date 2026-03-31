@@ -159,7 +159,7 @@ jobs:
 
       - name: Create portal & publish APIs
         run: |
-          kongctl apply -f portal.yaml --yes --pat "${{ secrets.KONNECT_TOKEN }}" --region ${{ env.KONNECT_REGION }}
+          kongctl apply -f portal.yaml --auto-approve --pat "${{ secrets.KONNECT_TOKEN }}" --region ${{ env.KONNECT_REGION }}
 
       - name: Verify portal
         run: |
