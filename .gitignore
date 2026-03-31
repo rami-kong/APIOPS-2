@@ -4,7 +4,7 @@ data-plane/certs/
 
 # Terraform
 .terraform/
-*.tfstate
+# terraform.tfstate is committed for CI state sync
 *.tfstate.backup
 # .terraform.lock.hcl is committed to lock provider versions
 terraform.tfvars
