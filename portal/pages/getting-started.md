@@ -32,21 +32,21 @@ gridColumnsBreakpoints:
 ---
 title: "1. Browse the API Catalog"
 ---
-Head to the [API Catalog](/apis) to discover available APIs. Each API includes an OpenAPI spec you can download or use to generate client SDKs.
+Head to the [API Catalog](/apis) to discover available APIs. Each API includes a downloadable OpenAPI spec you can use to generate client SDKs.
 :::
 
 :::card
 ---
 title: "2. Read the Documentation"
 ---
-Click into any API to view endpoint details, request/response examples, authentication requirements, and rate limits.
+Click into any API to view endpoint details, request/response examples with real tested outputs, authentication requirements, and rate limits.
 :::
 
 :::card
 ---
 title: "3. Test the Endpoints"
 ---
-Use `curl` or your favorite HTTP client to test endpoints directly. Check the API docs for ready-to-use examples.
+Copy the `curl` examples below and run them in your terminal. Every example has been verified and returns real responses.
 :::
 
 ::
@@ -55,20 +55,50 @@ Use `curl` or your favorite HTTP client to test endpoints directly. Check the AP
 :::page-section{backgroundColor="#f9fafb" padding="60px 0"}
 ::container{maxWidth="720px" margin="0 auto"}
 
-## Quick Test
+## Test the Echo API
 
-Try the Echo API right now:
+### GET /anything
+
+Returns metadata about your request — headers, query params, origin IP, and method.
 
 ```bash
-# GET /anything — returns request metadata
-curl -s "https://httpbin.org/anything?source=apiops-portal" | jq .
+curl -s "https://httpbin.org/anything?source=apiops-portal&demo=true" | jq .
 ```
 
+**Response:**
+```json
+{
+  "args": {
+    "demo": "true",
+    "source": "apiops-portal"
+  },
+  "headers": {
+    "Accept": "*/*",
+    "Host": "httpbin.org",
+    "User-Agent": "curl/8.7.1"
+  },
+  "method": "GET",
+  "origin": "203.123.65.132",
+  "url": "https://httpbin.org/anything?source=apiops-portal&demo=true"
+}
+```
+
+### POST /post
+
+Echoes back your JSON payload. Great for testing POST requests and validating content types.
+
 ```bash
-# POST /post — echoes back your payload
 curl -s -X POST "https://httpbin.org/post" \
   -H "Content-Type: application/json" \
-  -d '{"message": "Hello from APIOps"}' | jq .json
+  -d '{"message": "Hello from Rami APIOps", "demo": true}' | jq .json
+```
+
+**Response:**
+```json
+{
+  "demo": true,
+  "message": "Hello from Rami APIOps"
+}
 ```
 
 ::
@@ -81,12 +111,13 @@ curl -s -X POST "https://httpbin.org/post" \
 
 This portal is powered by an end-to-end APIOps pipeline:
 
-1. **Design** — Author OpenAPI specs with Kong extensions
+1. **Design** — Author OpenAPI specs with Kong extensions (`x-kong-name`, `x-kong-plugin-*`)
 2. **Generate** — `deck` converts specs to Kong gateway config and Terraform
-3. **Deploy** — Terraform provisions gateway services, routes, and plugins on Kong Konnect
-4. **Publish** — `kongctl` creates this portal, publishes APIs with docs and specs
+3. **Deploy** — Terraform provisions services, routes, and plugins on Kong Konnect
+4. **Publish** — `kongctl` creates this portal with API docs and specs
+5. **Automate** — GitHub Actions runs the full pipeline on every push
 
-All automated via [GitHub Actions](https://github.com/rami-kong/APIOPS-2).
+All source code: [github.com/rami-kong/APIOPS-2](https://github.com/rami-kong/APIOPS-2)
 
 ::button{to="/apis" appearance="primary"}
 Explore APIs

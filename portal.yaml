@@ -94,66 +94,152 @@ apis:
           # Echo API Documentation
 
           ## Overview
-          The Echo API is designed for testing HTTP methods and debugging requests. It proxies to [httpbin.org](https://httpbin.org) through Kong Gateway with rate limiting applied.
+
+          The Echo API proxies requests to [httpbin.org](https://httpbin.org) through Kong Gateway. It is designed for testing HTTP methods, debugging request/response payloads, and validating gateway plugins like rate limiting.
+
+          All examples below have been **tested live** and return real responses.
+
+          ---
 
           ## Base URL
+
           ```
           https://httpbin.org
           ```
 
+          ---
+
           ## Endpoints
 
-          ### GET /anything
-          Returns comprehensive information about the request including headers, query parameters, and metadata.
+          ### `GET` /anything
 
-          **Example Request:**
+          Returns comprehensive information about the incoming request — method, headers, query parameters, origin IP, and full URL.
+
+          **Request:**
           ```bash
-          curl -s "https://httpbin.org/anything?test=demo" | jq .
+          curl -s "https://httpbin.org/anything?source=apiops-portal&demo=true" | jq .
           ```
 
-          **Example Response:**
+          **Response:**
           ```json
           {
-            "args": { "test": "demo" },
-            "headers": { "Host": "httpbin.org", "Accept": "*/*" },
+            "args": {
+              "demo": "true",
+              "source": "apiops-portal"
+            },
+            "data": "",
+            "files": {},
+            "form": {},
+            "headers": {
+              "Accept": "*/*",
+              "Host": "httpbin.org",
+              "User-Agent": "curl/8.7.1"
+            },
+            "json": null,
             "method": "GET",
-            "origin": "203.0.113.1",
-            "url": "https://httpbin.org/anything?test=demo"
+            "origin": "203.123.65.132",
+            "url": "https://httpbin.org/anything?source=apiops-portal&demo=true"
           }
           ```
 
-          ### POST /post
-          Returns the posted data back. Useful for testing POST payloads.
+          | Field | Description |
+          |-------|-------------|
+          | `args` | Query string parameters |
+          | `headers` | Request headers received by the upstream |
+          | `method` | HTTP method used |
+          | `origin` | Client IP address |
+          | `url` | Full request URL |
 
-          **Example Request:**
+          ---
+
+          ### `POST` /post
+
+          Accepts a JSON payload and echoes it back in the response. Useful for testing POST requests, validating payloads, and debugging content types.
+
+          **Request:**
           ```bash
           curl -s -X POST "https://httpbin.org/post" \
             -H "Content-Type: application/json" \
-            -d '{"message": "Hello from APIOps", "demo": true}' | jq .
+            -d '{"message": "Hello from Rami APIOps", "demo": true, "timestamp": "2026-03-31T20:00:00Z"}' | jq .
           ```
 
-          **Example Response:**
+          **Response:**
           ```json
           {
-            "json": { "message": "Hello from APIOps", "demo": true },
-            "headers": { "Content-Type": "application/json" },
-            "method": "POST",
-            "origin": "203.0.113.1",
+            "args": {},
+            "data": "{\"message\": \"Hello from Rami APIOps\", \"demo\": true, \"timestamp\": \"2026-03-31T20:00:00Z\"}",
+            "files": {},
+            "form": {},
+            "headers": {
+              "Accept": "*/*",
+              "Content-Length": "88",
+              "Content-Type": "application/json",
+              "Host": "httpbin.org"
+            },
+            "json": {
+              "demo": true,
+              "message": "Hello from Rami APIOps",
+              "timestamp": "2026-03-31T20:00:00Z"
+            },
+            "origin": "203.123.65.132",
             "url": "https://httpbin.org/post"
           }
           ```
 
+          | Field | Description |
+          |-------|-------------|
+          | `data` | Raw request body as a string |
+          | `json` | Parsed JSON payload |
+          | `headers` | Request headers including `Content-Type` |
+
+          ---
+
+          ## Error Responses
+
+          | Status | Description |
+          |--------|-------------|
+          | `200` | Success — request data returned |
+          | `401` | Unauthorized — invalid or missing API key (when key-auth plugin is enabled) |
+          | `429` | Too Many Requests — rate limit exceeded |
+
+          ---
+
           ## Rate Limiting
-          When accessed through the Kong Gateway proxy:
-          - **90 requests per minute**
-          - **1000 requests per hour**
-          - Policy: local
+
+          When accessed through the Kong Gateway proxy, the following rate limits apply:
+
+          | Limit | Value |
+          |-------|-------|
+          | Per minute | 90 requests |
+          | Per hour | 1,000 requests |
+          | Policy | local |
+          | Client headers | Visible (`X-RateLimit-Remaining-Minute`, `X-RateLimit-Remaining-Hour`) |
+
+          ---
 
           ## Kong Gateway Configuration
-          This API is managed via APIOps:
-          - **Service**: `rami-apiops-demo` → `httpbin.org:443`
-          - **Routes**: `~/anything$` (GET), `~/post$` (POST)
-          - **Plugin**: Rate Limiting (90/min, 1000/hr)
+
+          This API is fully managed via the APIOps pipeline:
+
+          | Resource | Details |
+          |----------|---------|
+          | **Service** | `rami-apiops-demo` → `httpbin.org:443` (HTTPS) |
+          | **Route (GET)** | `~/anything$` — matches `GET /anything` |
+          | **Route (POST)** | `~/post$` — matches `POST /post` |
+          | **Plugin** | Rate Limiting (90/min, 1000/hr, local policy) |
+          | **Tags** | `owner=rami`, `created_by:terraform`, `environment:dev` |
+
+          ---
+
+          ## APIOps Pipeline
+
+          This API was deployed using:
+
+          1. **OpenAPI Spec** → `specs/oas.yaml` with Kong extensions (`x-kong-name`, `x-kong-plugin-rate-limiting`)
+          2. **deck** → Converts OAS to Kong declarative config, then to Terraform
+          3. **Terraform** → Deploys gateway service, routes, and plugins to Kong Konnect
+          4. **kongctl** → Publishes API with spec and docs to this Developer Portal
+          5. **GitHub Actions** → Automates the entire pipeline on push
     publications:
       - ref: echo-api-pub
         portal_id: !ref rami-portal#id
