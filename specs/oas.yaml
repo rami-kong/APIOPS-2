@@ -2,10 +2,12 @@ openapi: "3.0.1"
 info:
   title: "ApiOps Echo Service"
   version: "1.0.0"
-  description: "A minimal OpenAPI spec with only the /anything GET endpoint."
+  description: "Echo API for testing HTTP methods and request data. Proxied through Kong Gateway to httpbin.org."
+  contact:
+    name: "Rami APIOps Team"
 servers:
   - url: "https://httpbin.org"
-    description: "DCGW Production server"
+    description: "Upstream service (httpbin.org)"
 
 # Kong-specific extensions - Also change apis.yaml Lines 42 and 49 must match this name
 x-kong-name: "rami-apiops-demo"

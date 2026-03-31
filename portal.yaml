@@ -73,19 +73,66 @@ apis:
           # Echo API Documentation
 
           ## Overview
-          The Echo API is designed for testing HTTP methods and debugging requests.
+          The Echo API is designed for testing HTTP methods and debugging requests. It proxies to [httpbin.org](https://httpbin.org) through Kong Gateway with rate limiting applied.
+
+          ## Base URL
+          ```
+          https://httpbin.org
+          ```
 
           ## Endpoints
 
           ### GET /anything
           Returns comprehensive information about the request including headers, query parameters, and metadata.
 
+          **Example Request:**
+          ```bash
+          curl -s "https://httpbin.org/anything?test=demo" | jq .
+          ```
+
+          **Example Response:**
+          ```json
+          {
+            "args": { "test": "demo" },
+            "headers": { "Host": "httpbin.org", "Accept": "*/*" },
+            "method": "GET",
+            "origin": "203.0.113.1",
+            "url": "https://httpbin.org/anything?test=demo"
+          }
+          ```
+
           ### POST /post
           Returns the posted data back. Useful for testing POST payloads.
 
+          **Example Request:**
+          ```bash
+          curl -s -X POST "https://httpbin.org/post" \
+            -H "Content-Type: application/json" \
+            -d '{"message": "Hello from APIOps", "demo": true}' | jq .
+          ```
+
+          **Example Response:**
+          ```json
+          {
+            "json": { "message": "Hello from APIOps", "demo": true },
+            "headers": { "Content-Type": "application/json" },
+            "method": "POST",
+            "origin": "203.0.113.1",
+            "url": "https://httpbin.org/post"
+          }
+          ```
+
           ## Rate Limiting
-          - 90 requests per minute
-          - 1000 requests per hour
+          When accessed through the Kong Gateway proxy:
+          - **90 requests per minute**
+          - **1000 requests per hour**
+          - Policy: local
+
+          ## Kong Gateway Configuration
+          This API is managed via APIOps:
+          - **Service**: `rami-apiops-demo` → `httpbin.org:443`
+          - **Routes**: `~/anything$` (GET), `~/post$` (POST)
+          - **Plugin**: Rate Limiting (90/min, 1000/hr)
     publications:
       - ref: echo-api-pub
         portal_id: !ref rami-portal#id
