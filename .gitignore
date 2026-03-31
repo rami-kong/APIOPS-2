@@ -6,7 +6,7 @@ data-plane/certs/
 .terraform/
 *.tfstate
 *.tfstate.backup
-.terraform.lock.hcl
+# .terraform.lock.hcl is committed to lock provider versions
 terraform.tfvars
 
 # Generated Kong configs (built in CI)

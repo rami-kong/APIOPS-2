@@ -1,0 +1,52 @@
+# This file is maintained automatically by "terraform init".
+# Manual edits may be lost in future updates.
+
+provider "registry.terraform.io/hashicorp/http" {
+  version     = "3.5.0"
+  constraints = ">= 3.0.0"
+  hashes = [
+    "h1:dl73+8wzQR++HFGoJgDqY3mj3pm14HUuH/CekVyOj5s=",
+    "zh:047c5b4920751b13425efe0d011b3a23a3be97d02d9c0e3c60985521c9c456b7",
+    "zh:157866f700470207561f6d032d344916b82268ecd0cf8174fb11c0674c8d0736",
+    "zh:1973eb9383b0d83dd4fd5e662f0f16de837d072b64a6b7cd703410d730499476",
+    "zh:212f833a4e6d020840672f6f88273d62a564f44acb0c857b5961cdb3bbc14c90",
+    "zh:2c8034bc039fffaa1d4965ca02a8c6d57301e5fa9fff4773e684b46e3f78e76a",
+    "zh:5df353fc5b2dd31577def9cc1a4ebf0c9a9c2699d223c6b02087a3089c74a1c6",
+    "zh:672083810d4185076c81b16ad13d1224b9e6ea7f4850951d2ab8d30fa6e41f08",
+    "zh:78d5eefdd9e494defcb3c68d282b8f96630502cac21d1ea161f53cfe9bb483b3",
+    "zh:7b4200f18abdbe39904b03537e1a78f21ebafe60f1c861a44387d314fda69da6",
+    "zh:843feacacd86baed820f81a6c9f7bd32cf302db3d7a0f39e87976ebc7a7cc2ee",
+    "zh:a9ea5096ab91aab260b22e4251c05f08dad2ed77e43e5e4fadcdfd87f2c78926",
+    "zh:d02b288922811739059e90184c7f76d45d07d3a77cc48d0b15fd3db14e928623",
+  ]
+}
+
+provider "registry.terraform.io/kong/konnect" {
+  version     = "2.12.0"
+  constraints = ">= 2.8.0"
+  hashes = [
+    "h1:lHor8HjzRtjt6uwjdpzgaW+CBC5BBYb2JZRXrDTJw18=",
+    "zh:12ee8700bcdf4084cb7afb14d769555c81de886bfb19078bc2d7464b794b1fab",
+    "zh:21add3176d7f88c5daf36ff6967873db7bca781643d945404bf31b97f564cba9",
+    "zh:4742fcc44425de6bbb9570bc0dc0555dc8e0c25a3461d5af224e9e959abf37f6",
+    "zh:669b517fb9586158f1f12fa1acc9be7217679fac778ad318c6db2fca92ba8c72",
+    "zh:890df766e9b839623b1f0437355032a3c006226a6c200cd911e15ee1a9014e9f",
+    "zh:d9b5a488e0c69829173493cb90ecd5b67d800ec5d31e5a261723bb6214f7ad9b",
+    "zh:fc99ff69c84000774fead045049788b73f1b92e34538e87f2c9ef1a0bf3da7b5",
+  ]
+}
+
+provider "registry.terraform.io/kong/konnect-beta" {
+  version     = "0.7.2"
+  constraints = ">= 0.4.1"
+  hashes = [
+    "h1:Ds8a3hKI2E1WnT1UkunYd+R/kRgc3W5PU/SW7YJGhlc=",
+    "zh:077c4c43e975e2dfe9186e15d8f92b5c222f577abe06137cdd4a424218643acc",
+    "zh:1cd4d90a9b19d188e801b19fe2735610fa507af48c516d87b1e04bcf48f0ec55",
+    "zh:454bb790c2eff4f84ed3527a33dffbd31680288f5ad91f0be5180e43881e943a",
+    "zh:67db3fd1dda3954b54bf779e08573dbab25d6a331ae0bca385b8e11fa4d1e798",
+    "zh:890df766e9b839623b1f0437355032a3c006226a6c200cd911e15ee1a9014e9f",
+    "zh:ddc58ec5e0f64d66716521e2b16f6be24e8af49167395ea926800f6e37f60458",
+    "zh:ec5675ddf6d058bcb8002f352d0d746a4888a546b1869f5de84a301e6c28a343",
+  ]
+}
